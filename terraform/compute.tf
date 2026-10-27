@@ -46,3 +46,43 @@
 # Resource names outputs.tf expects from this file:
 #   aws_instance.api
 #   aws_instance.worker
+
+# Public-facing API instance
+resource "aws_instance" "api" {
+  ami           = data.aws_ssm_parameter.ubuntu_arm64.value
+  instance_type = var.api_instance_type
+  key_name      = var.key_name
+
+  subnet_id                   = aws_subnet.public.id
+  vpc_security_group_ids      = [aws_security_group.api_sg.id]
+  associate_public_ip_address = true
+
+  user_data = templatefile("${path.module}/scripts/user_data.sh.tpl", {
+    app_server_py = file("${path.module}/../app/server.py")
+    host_role     = "api"
+  })
+
+  tags = {
+    Name = "assignment6-api"
+  }
+}
+
+# Private batch-processing worker
+resource "aws_instance" "worker" {
+  ami           = data.aws_ssm_parameter.ubuntu_arm64.value
+  instance_type = var.worker_instance_type
+  key_name      = var.key_name
+
+  subnet_id                   = aws_subnet.private.id
+  vpc_security_group_ids      = [aws_security_group.worker_sg.id]
+  associate_public_ip_address = false
+
+  user_data = templatefile("${path.module}/scripts/user_data.sh.tpl", {
+    app_server_py = file("${path.module}/../app/server.py")
+    host_role     = "worker"
+  })
+
+  tags = {
+    Name = "assignment6-worker"
+  }
+}
